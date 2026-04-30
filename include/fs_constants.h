@@ -5,9 +5,9 @@
 #ifndef RYEFS_FS_CONSTANTS_H
 #define RYEFS_FS_CONSTANTS_H
 
-// Magic Bytes
+// Magic
 #define FS_MAGIC 0x52796500
-#define JRNL_MAGIC 0x
+#define JRNL_MAGIC 0x4A524E42
 
 // Current Major/Minor version numbers
 #define RYEFS_MAJOR_VERSION 1
@@ -22,5 +22,13 @@
 #define SB_FLAG_XATTRS              (1 << 5)    // Extended attributes are present
 #define SB_FLAG_SPARSE              (1 << 6)    // Sparse file support enabled
 #define SB_FLAG_DEDUP               (1 << 7)    // File-level dedup is enabled
+
+// Journal entry types
+#define JTYPE_BLOCK_DATA    1;  // Raw block 
+#define JTYPE_INODE_UPDATE  2;  // Serialised inode update
+#define JTYPE_BITMAP_UPDATE 3;  // Allocation bitmap delta
+#define JTYPE_COMMIT        4;  // Transaction complete
+#define JTYPE_ABORT         5;  // Transaction was rolled back
+#define JTYPE_SUPERBLOCK    6;  // Superblock snapshot
 
 #endif //RYEFS_FS_CONSTANTS_H
