@@ -6,6 +6,8 @@
 #define RYEFS_FS_STRUCTS_H
 #include <stdint.h>
 
+#include "fs_constants.h"
+
 typedef struct superblock
 {
     uint32_t magic;                 // FS_MAGIC
@@ -37,5 +39,32 @@ typedef struct superblock
     uint32_t checksum;              // CRC32C of bytes 0..(sizeof-4)
     uint8_t _pad[pad_to_block];     // Zeropad this struct to exactly one block
 } __attribute__((packed)) superblock_t;
+
+typedef struct inode
+{
+    uint16_t mode;                          // File type and permissions (Unix-standard)
+    uint16_t uid;                           // Owners user ID
+    uint16_t gid;                           // Owners group ID
+    uint16_t _pad0;                         // Padding
+    uint32_t link_count;                    // Number of hard links
+    uint32_t flags;                         // Inode flags
+    uint64_t size;                          // File size in bytes
+    uint64_t block_count;                   // 512-byte blocks allocated
+    uint64_t atime;                         // Last access time in Unix nanoseconds
+    uint64_t mtime;                         // Last modified time in Unix nanoseconds
+    uint64_t ctime;                         // Last status-change time in Unix nanoseconds
+    uint64_t crtime;                        // Creation time in Unix nanoseconds
+    uint64_t direct[INODE_DIRECT_BLOCKS];   // Direct pointers to blocks
+    uint64_t indirect1;                     // Pointer to a single indirect block
+    uint64_t indirect2;                     // Pointer to a double indirect block
+    uint64_t indirect3;                     // Pointer to a triple indirect block
+    uint64_t xattr_block;                   // Block containing extended attributes (0 = none)
+    uint8_t file_hash[32];                  // BLAKE3 hash of full file contents
+    uint64_t dedup_cononical;               // Inode that owns the blocks (0 = self)
+    uint32_t dedup_ref_count;               // 0 = unshared, >1 = block chain is shared
+    uint32_t generation;                    // Increment on inode reuse
+    uint32_t checksum;                      // CRC32C of inode structure
+    uint8_t _reserved[remaining_bytes];     // Zero-pad to INODE_SIZE
+} __attribute__((packed)) inode_t;
 
 #endif //RYEFS_FS_STRUCTS_H

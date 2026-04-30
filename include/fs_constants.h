@@ -13,6 +13,20 @@
 #define RYEFS_MAJOR_VERSION 1
 #define RYEFS_MINOR_VERSION 0
 
+// Inode sizing
+#define INODE_DIRECT_BLOCKS 12
+#define INODE_SIZE          256     // Size in bytes
+
+// Inode Flags
+#define INODE_FLAG_IMMUTABLE        (1 << 0)    // File is immutable
+#define INODE_FLAG_APPEND_ONLY      (1 << 1)    // Only appending writes are permitted
+#define INODE_FLAG_NOATIME          (1 << 2)    // Do not update atime on access
+#define INODE_FLAG_SPARSE           (1 << 3)    // File is sparse
+#define INODE_FLAG_NOJOUR           (1 << 4)    // File is not journalled
+#define INODE_FLAG_HAS_XATTRS       (1 << 5)    // File has a valid xattrs block
+#define INODE_FLAG_HASH_VALID       (1 << 6)    // File hash reflects current file contents
+#define INODE_FLAG_DEDUP_SHARE      (1 << 7)    // Block chain is shared via deduplication
+
 // FS Flags
 #define SB_FLAG_JOURNAL_ENABLED     (1 << 0)    // Has active primary journal
 #define SB_FLAG_CHECKPOINT_JOURNAL  (1 << 1)    // Has active checkpoint journal
@@ -24,7 +38,7 @@
 #define SB_FLAG_DEDUP               (1 << 7)    // File-level dedup is enabled
 
 // Journal entry types
-#define JTYPE_BLOCK_DATA    1;  // Raw block 
+#define JTYPE_BLOCK_DATA    1;  // Raw block
 #define JTYPE_INODE_UPDATE  2;  // Serialised inode update
 #define JTYPE_BITMAP_UPDATE 3;  // Allocation bitmap delta
 #define JTYPE_COMMIT        4;  // Transaction complete
