@@ -4,6 +4,7 @@
 
 #ifndef RYEFS_FS_STRUCTS_H
 #define RYEFS_FS_STRUCTS_H
+#include <stdint.h>
 
 typedef struct superblock
 {

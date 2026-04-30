@@ -19,4 +19,13 @@ typedef struct journal_entry
     uint8_t data[];             // Block data or metadata payload
 } __attribute__((__packed__)) journal_entry;
 
+typedef struct checkpoint_entry
+{
+    uint32_t magic;             // CHECKPOINT_MAGIC
+    uint64_t transaction_id;    // Must match committed primary entry
+    uint64_t committed_at;      // Time commit in Unix time
+    uint64_t blocks_written;    // Number of blocks flushed in transaction
+    uint32_t checksum;          // CRC32C of this transaction
+} __attribute__((__packed__)) checkpoint_entry;
+
 #endif //RYEFS_FS_JOURNAL_H
