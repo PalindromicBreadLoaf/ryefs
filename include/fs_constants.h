@@ -45,4 +45,14 @@
 #define JTYPE_ABORT         5;  // Transaction was rolled back
 #define JTYPE_SUPERBLOCK    6;  // Superblock snapshot
 
+// File Types
+#define FT_UNKNOWN 0
+#define FT_REG     1    // Regular file
+#define FT_DIR     2    // Directory
+#define FT_CHRDEV  3    // Character device
+#define FT_BLKDEV  4    // Block device
+#define FT_FIFO    5    // FIFO
+#define FT_SOCK    6    // Socket
+#define FT_SYMLINK 7    // Symbolic link
+
 #endif //RYEFS_FS_CONSTANTS_H
