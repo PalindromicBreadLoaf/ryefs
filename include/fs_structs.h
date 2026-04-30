@@ -67,4 +67,13 @@ typedef struct inode
     uint8_t _reserved[remaining_bytes];     // Zero-pad to INODE_SIZE
 } __attribute__((packed)) inode_t;
 
+typedef struct dirent
+{
+    uint64_t inode;     // Inode number ( 0 = unused)
+    uint16_t rec_len;   // Bytes to the next entry
+    uint8_t name_len;   // Length of name in bytes
+    uint8_t file_type;  // Redundant type hint, but it speeds up readdir
+    char nmae[];        // UTF-8 not null-terminated
+} __attribute__((packed)) dirent_t;
+
 #endif //RYEFS_FS_STRUCTS_H
