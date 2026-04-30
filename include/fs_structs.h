@@ -5,10 +5,6 @@
 #ifndef RYEFS_FS_STRUCTS_H
 #define RYEFS_FS_STRUCTS_H
 
-#define FS_MAGIC 0x5279656673
-#define RYEFS_MAJOR_VERSION 1
-#define RYEFS_MINOR_VERSION 0
-
 typedef struct superblock
 {
     uint32_t magic;                 // FS_MAGIC
