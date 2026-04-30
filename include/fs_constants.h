@@ -5,11 +5,15 @@
 #ifndef RYEFS_FS_CONSTANTS_H
 #define RYEFS_FS_CONSTANTS_H
 
-#define FS_MAGIC 0x5279656673
+// Magic Bytes
+#define FS_MAGIC 0x52796500
+#define JRNL_MAGIC 0x
 
+// Current Major/Minor version numbers
 #define RYEFS_MAJOR_VERSION 1
 #define RYEFS_MINOR_VERSION 0
 
+// FS Flags
 #define SB_FLAG_JOURNAL_ENABLED     (1 << 0)    // Has active primary journal
 #define SB_FLAG_CHECKPOINT_JOURNAL  (1 << 1)    // Has active checkpoint journal
 #define SB_FLAG_DIRTY               (1 << 2)    // Set on mount, clear on proper unmount
