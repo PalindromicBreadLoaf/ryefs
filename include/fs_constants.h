@@ -61,7 +61,7 @@
 #define SB_FLAG_DIRTY               (1 << 2)    // Set on mount, clear on proper unmount
 #define SB_FLAG_ERRORS_READONLY     (1 << 3)    // Remount as RO on error
 #define SB_FLAG_UNIX_PERMS          (1 << 4)    // Unix permissions are enabled
-                                                // Bit 5 reserved, must be zero in v1
+#define SB_FLAG_RESERVED_5          (1 << 5)    // Bit 5 reserved, must be zero in v1
 #define SB_FLAG_SPARSE              (1 << 6)    // Sparse file support enabled
 #define SB_FLAG_DEDUP               (1 << 7)    // File-level dedup is enabled
 #define SB_FLAG_VOLUME_SUSPECT      (1 << 8)    // Needs fsck before read-write use
