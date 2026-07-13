@@ -7,6 +7,10 @@ CC      := clang
 AR      := ar
 ARFLAGS := rcs
 
+# --- Build type ---------------------------------------------------------------
+# BUILD=debug (default) or BUILD=release.
+BUILD ?= debug
+
 # --- Directories --------------------------------------------------------------
 SRC_LIB   := lib
 SRC_MKFS  := mkfs
@@ -15,12 +19,13 @@ SRC_FUSE  := fuse
 SRC_TOOLS := tools
 SRC_TESTS := tests/unit
 
-INC_DIR   := include
-BUILD_DIR := build
-BIN_DIR   := bin
+INC_DIR    := include
+BUILD_ROOT := build
+BUILD_DIR  := $(BUILD_ROOT)/$(BUILD)
+BIN_DIR    := bin
 
 # --- Outputs -----------------------------------------------------------------
-LIB_NAME    := librye.a
+LIB_NAME    := libryefs.a
 LIB_OUT     := $(BUILD_DIR)/$(LIB_NAME)
 
 BIN_MKFS    := $(BIN_DIR)/mkfs.ryefs
@@ -57,11 +62,9 @@ CFLAGS_RELEASE := \
     -flto \
     -DNDEBUG
 
-# Select build type
-BUILD ?= debug
 ifeq ($(BUILD),release)
     CFLAGS := $(CFLAGS_RELEASE)
-    LDFLAGS_EXTRA :=
+    LDFLAGS_EXTRA := -flto
 else
     CFLAGS := $(CFLAGS_DEBUG)
     LDFLAGS_EXTRA := -fsanitize=address,undefined
@@ -72,13 +75,28 @@ FUSE_CFLAGS  := $(shell pkg-config --cflags fuse3 2>/dev/null)
 FUSE_LDFLAGS := $(shell pkg-config --libs   fuse3 2>/dev/null)
 
 # --- BLAKE3 -------------------------------------------------------------------
-BLAKE3_SRC := $(SRC_LIB)/blake3.c
+# Vendored from https://github.com/BLAKE3-team/BLAKE3 (c/, tag 1.8.5).
+# See `lib/blake3-LICENSE_A2` and `lib/blake3-LICENSE_CC0` for licensing.
+BLAKE3_SRCS := \
+    $(SRC_LIB)/blake3.c \
+    $(SRC_LIB)/blake3_dispatch.c \
+    $(SRC_LIB)/blake3_portable.c
+
+BLAKE3_DEFS := \
+    -DBLAKE3_NO_SSE2 \
+    -DBLAKE3_NO_SSE41 \
+    -DBLAKE3_NO_AVX2 \
+    -DBLAKE3_NO_AVX512 \
+    -DBLAKE3_USE_NEON=0
 
 # --- Source files -------------------------------------------------------------
 LIB_SRCS := \
     $(SRC_LIB)/fs_structs.c \
-    $(SRC_LIB)/fs_crc.c \
     $(SRC_LIB)/fs_endian.c \
+    $(SRC_LIB)/fs_crc.c \
+    $(SRC_LIB)/fs_boot.c \
+    $(SRC_LIB)/fs_geometry.c \
+    $(SRC_LIB)/fs_io.c \
     $(SRC_LIB)/fs_superblock.c \
     $(SRC_LIB)/fs_bitmap.c \
     $(SRC_LIB)/fs_inode.c \
@@ -87,7 +105,7 @@ LIB_SRCS := \
     $(SRC_LIB)/fs_journal.c \
     $(SRC_LIB)/fs_dedup.c \
     $(SRC_LIB)/fs_volume.c \
-    $(BLAKE3_SRC)
+    $(BLAKE3_SRCS)
 
 MKFS_SRCS := \
     $(SRC_MKFS)/main.c \
@@ -107,20 +125,29 @@ FUSE_SRCS := \
     $(SRC_FUSE)/main.c \
     $(SRC_FUSE)/fuse_ops.c \
     $(SRC_FUSE)/fuse_read.c \
-    $(SRC_FUSE)/fuse_write.c \
-    $(SRC_FUSE)/fuse_xattr.c
+    $(SRC_FUSE)/fuse_write.c
 
 TOOL_INFO_SRCS  := $(SRC_TOOLS)/rye-info.c
 TOOL_DUMP_SRCS  := $(SRC_TOOLS)/rye-dump.c
 TOOL_DEDUP_SRCS := $(SRC_TOOLS)/rye-dedup-stat.c
 
+# Unit tests link into one rye-tests binary.
+# Tests should not redefine a main().
 TEST_SRCS := \
+    $(SRC_TESTS)/test_main.c \
+    $(SRC_TESTS)/test_constants.c \
+    $(SRC_TESTS)/test_endian.c \
     $(SRC_TESTS)/test_crc.c \
+    $(SRC_TESTS)/test_structs.c \
+    $(SRC_TESTS)/test_boot.c \
+    $(SRC_TESTS)/test_geometry.c \
+    $(SRC_TESTS)/test_io.c \
+    $(SRC_TESTS)/test_superblock.c \
     $(SRC_TESTS)/test_bitmap.c \
     $(SRC_TESTS)/test_inode.c \
     $(SRC_TESTS)/test_dirent.c \
-    $(SRC_TESTS)/test_journal.c \
     $(SRC_TESTS)/test_block.c \
+    $(SRC_TESTS)/test_journal.c \
     $(SRC_TESTS)/test_dedup.c
 
 # --- Object files -----------------------------------------------------------
@@ -132,15 +159,16 @@ INFO_OBJS     := $(patsubst %.c,$(BUILD_DIR)/%.o,$(TOOL_INFO_SRCS))
 DUMP_OBJS     := $(patsubst %.c,$(BUILD_DIR)/%.o,$(TOOL_DUMP_SRCS))
 DEDUP_OBJS    := $(patsubst %.c,$(BUILD_DIR)/%.o,$(TOOL_DEDUP_SRCS))
 TEST_OBJS     := $(patsubst %.c,$(BUILD_DIR)/%.o,$(TEST_SRCS))
+BLAKE3_OBJS   := $(patsubst %.c,$(BUILD_DIR)/%.o,$(BLAKE3_SRCS))
 
-ALL_OBJS := $(LIB_OBJS) $(MKFS_OBJS) $(FSCK_OBJS) $(FUSE_OBJS) \
-            $(INFO_OBJS) $(DUMP_OBJS) $(DEDUP_OBJS) $(TEST_OBJS)
+# Vendored BLAKE3 objects get the portable-only defines
+$(BLAKE3_OBJS): CFLAGS += $(BLAKE3_DEFS)
 
 # ==============================================================================
 # Targets
 # ==============================================================================
 
-.PHONY: all lib mkfs fsck fuse tools tests check integration clean help
+.PHONY: all lib mkfs fsck fuse tools tests check integration clean distclean help
 
 # Default: build everything except the FUSE driver
 all: lib mkfs fsck tools tests
@@ -160,15 +188,18 @@ check: tests
 	@echo "==> Running unit tests"
 	$(BIN_TESTS)
 
-# Run integration tests (requires a mounted FUSE volume)
+# Run integration tests (requires FUSE and root access)
 integration: fuse mkfs fsck
 	@echo "==> Running integration tests"
+	@bash tests/integration/test_mkfs_fsck.sh
+	@bash tests/integration/test_basic_ro.sh
 	@bash tests/integration/test_basic_rw.sh
 	@bash tests/integration/test_large_file.sh
 	@bash tests/integration/test_permissions.sh
+	@bash tests/integration/test_crash_recovery.sh
+	@bash tests/integration/test_fault_injection.sh
 	@bash tests/integration/test_dedup.sh
 	@bash tests/integration/test_fill.sh
-	@echo "==> Run crash recovery test as root"
 
 # ==============================================================================
 # Build rules
@@ -200,14 +231,23 @@ $(BIN_DEDUP): $(DEDUP_OBJS) $(LIB_OUT) | $(BIN_DIR)
 $(BIN_TESTS): $(TEST_OBJS) $(LIB_OUT) | $(BIN_DIR)
 	$(CC) $(LDFLAGS_EXTRA) -o $@ $^
 
+# --- Compile rules with dependency tracking -----------------------------------
+DEPFLAGS = -MT $@ -MMD -MP -MF $(BUILD_DIR)/$*.d
+
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
-# Use FUSE_CFLAGS
+# FUSE sources additionally need FUSE_CFLAGS
 $(BUILD_DIR)/$(SRC_FUSE)/%.o: $(SRC_FUSE)/%.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(FUSE_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(FUSE_CFLAGS) -MT $@ -MMD -MP -MF $(BUILD_DIR)/$(SRC_FUSE)/$*.d -c -o $@ $<
+
+ALL_DEPS := $(patsubst %.c,$(BUILD_DIR)/%.d,\
+            $(LIB_SRCS) $(MKFS_SRCS) $(FSCK_SRCS) $(FUSE_SRCS) \
+            $(TOOL_INFO_SRCS) $(TOOL_DUMP_SRCS) $(TOOL_DEDUP_SRCS) $(TEST_SRCS))
+
+-include $(ALL_DEPS)
 
 # ==============================================================================
 # Directory creation
@@ -250,7 +290,7 @@ info: tools testimg
 
 # Clean all build artifacts
 clean:
-	rm -rf $(BUILD_DIR) $(BIN_DIR)
+	rm -rf $(BUILD_ROOT) $(BIN_DIR)
 
 # Deep clean including test images
 distclean: clean
@@ -264,22 +304,6 @@ distclean: clean
 .PHONY: release
 release:
 	$(MAKE) BUILD=release all fuse
-
-# ==============================================================================
-# Dependency tracking
-# ==============================================================================
-
-DEPFLAGS = -MT $@ -MMD -MP -MF $(BUILD_DIR)/$*.d
-ALL_DEPS  := $(patsubst %.c,$(BUILD_DIR)/%.d,\
-             $(LIB_SRCS) $(MKFS_SRCS) $(FSCK_SRCS) $(FUSE_SRCS) \
-             $(TOOL_INFO_SRCS) $(TOOL_DUMP_SRCS) $(TOOL_DEDUP_SRCS) $(TEST_SRCS))
-
-# Re-run compile rule with dependency tracking
-$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
-
--include $(ALL_DEPS)
 
 # ==============================================================================
 # Help
