@@ -96,6 +96,7 @@ LIB_SRCS := \
     $(SRC_LIB)/fs_crc.c \
     $(SRC_LIB)/fs_boot.c \
     $(SRC_LIB)/fs_geometry.c \
+    $(SRC_LIB)/fs_validate.c \
     $(SRC_LIB)/fs_io.c \
     $(SRC_LIB)/fs_superblock.c \
     $(SRC_LIB)/fs_bitmap.c \
